@@ -28,4 +28,6 @@ static public class StringSanitationHelpers
         }
         return split[0];
     }
+
+    public static string UrlWithoutQueryString(this string url) => url.Split('?').First();
 }

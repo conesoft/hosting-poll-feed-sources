@@ -1,6 +1,7 @@
 ﻿using CodeHollow.FeedReader;
 using Conesoft.Files;
 using Helpers;
+using System.Text.RegularExpressions;
 
 var timer = new PeriodicTimer(TimeSpan.FromMinutes(15));
 
@@ -40,6 +41,8 @@ do
 
                 var entryfile = entrystorage / Filename.From(entry.Filename, "json");
                 await entryfile.WriteAsJson(entry);
+
+                await SaveImage(link, entrystorage, entry.Filename);
             }));
         }
         catch (Exception)
@@ -49,6 +52,25 @@ do
 }
 while (await timer.WaitForNextTickAsync());
 
+static async Task SaveImage(string link, Conesoft.Files.Directory storage, string filename)
+{
+    var client = new HttpClient();
+
+    var html = await client.GetStringAsync(link);
+
+    var match = MyRegex().Match(html);
+
+    if(match.Success && match.Groups.Count > 1)
+    {
+        var image = match.Groups[1].Value.UrlWithoutQueryString();
+        var bytes = await client.GetByteArrayAsync(image);
+
+        var file = storage / Filename.From(filename, Path.GetExtension(image));
+
+        await file.WriteBytes(bytes);
+    }
+}
+
 record Feed(string Name, string Siteurl, string Feedurl, string Category)
 {
     public string Filename => Name.SafeFilename();
@@ -57,4 +79,10 @@ record Feed(string Name, string Siteurl, string Feedurl, string Category)
 record Entry(string Name, string Url, string Description, string Category)
 {
     public string Filename => Url.CleanUrl().SafeFilename();
+}
+
+partial class Program
+{
+    [GeneratedRegex("<meta property=\"og:image\" content=\"(.+?)\"")]
+    private static partial Regex MyRegex();
 }
