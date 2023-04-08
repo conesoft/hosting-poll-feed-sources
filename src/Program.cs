@@ -1,4 +1,5 @@
 ﻿using CodeHollow.FeedReader;
+using CodeHollow.FeedReader.Feeds;
 using Conesoft.Files;
 using Helpers;
 using System.Text.RegularExpressions;
@@ -10,10 +11,10 @@ var storage = Conesoft.Hosting.Host.GlobalStorage / "FromSources" / "Feeds";
 var feedstorage = storage / "Feeds";
 var entrystorage = storage / "Entries";
 
-var feeds = await settings.ReadFromJson<Feed[]>() ?? Array.Empty<Feed>();
-
 do
 {
+    var feeds = await settings.ReadFromJson<Feed[]>() ?? Array.Empty<Feed>();
+
     await Task.WhenAll(feeds.Select(async f =>
     {
         try
@@ -30,11 +31,18 @@ do
 
             await Task.WhenAll(entries.Select(async e =>
             {
-                var link = e.Link.StartsWith("http") ? e.Link : feed.Link + e.Link;
+                var link = e.SpecificItem switch
+                {
+                    AtomFeedItem atom => atom.Links.FirstOrDefault(l => l.Relation == "alternate")?.Href ?? null,
+                    _ => null
+                };
+
+                link ??= e.Link.StartsWith("http") ? e.Link : feed.Link + e.Link;
 
                 var entry = new Entry(
                     Name: e.Title,
                     Url: link,
+                    Published: e.PublishingDate ?? DateTime.MinValue,
                     Description: e.Description,
                     Category: f.Category
                 );
@@ -58,16 +66,35 @@ static async Task SaveImage(string link, Conesoft.Files.Directory storage, strin
 
     var html = await client.GetStringAsync(link);
 
-    var match = MyRegex().Match(html);
-
-    if(match.Success && match.Groups.Count > 1)
     {
-        var image = match.Groups[1].Value.UrlWithoutQueryString();
-        var bytes = await client.GetByteArrayAsync(image);
+        var match = FindOgImageContent().Match(html);
 
-        var file = storage / Filename.From(filename, Path.GetExtension(image));
+        if (match.Success && match.Groups.Count > 1)
+        {
+            var image = match.Groups[1].Value.UrlWithoutQueryString();
+            var bytes = await client.GetByteArrayAsync(image);
 
-        await file.WriteBytes(bytes);
+            var file = storage / Filename.From(filename, Path.GetExtension(image));
+
+            await file.WriteBytes(bytes);
+        }
+    }
+
+    {
+        var match = FindContentOgImage().Match(html);
+
+        if (match.Success && match.Groups.Count > 1)
+        {
+            var image = match.Groups[1].Value.UrlWithoutQueryString();
+            var bytes = await client.GetByteArrayAsync(image);
+
+            var extension = Path.GetExtension(image);
+            extension = string.IsNullOrEmpty(extension) ? "jpg" : extension;
+
+            var file = storage / Filename.From(filename, extension);
+
+            await file.WriteBytes(bytes);
+        }
     }
 }
 
@@ -76,13 +103,17 @@ record Feed(string Name, string Siteurl, string Feedurl, string Category)
     public string Filename => Name.SafeFilename();
 }
 
-record Entry(string Name, string Url, string Description, string Category)
+record Entry(string Name, string Url, DateTime Published, string Description, string Category)
 {
     public string Filename => Url.CleanUrl().SafeFilename();
 }
 
 partial class Program
 {
-    [GeneratedRegex("<meta property=\"og:image\" content=\"(.+?)\"")]
-    private static partial Regex MyRegex();
+    [GeneratedRegex("property=[\"']og:image[\"'] content=[\"'](.+?)[\"']")]
+    private static partial Regex FindOgImageContent();
+
+
+    [GeneratedRegex("content=[\"'](.+?)[\"'] property=[\"']og:image[\"']")]
+    private static partial Regex FindContentOgImage();
 }
