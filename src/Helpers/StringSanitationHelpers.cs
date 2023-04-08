@@ -16,6 +16,7 @@ static public class StringSanitationHelpers
         {
             var queries = HttpUtility.ParseQueryString(split[1]);
             queries.Remove("rss");
+            queries.Remove("src");
             queries.Remove("utm_medium");
             queries.Remove("utm_source");
             queries.Remove("utm_campaign");
