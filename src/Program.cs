@@ -74,9 +74,14 @@ static async Task SaveImage(string link, Conesoft.Files.Directory storage, strin
             var image = match.Groups[1].Value.UrlWithoutQueryString();
             var bytes = await client.GetByteArrayAsync(image);
 
-            var file = storage / Filename.From(filename, Path.GetExtension(image));
+            var extension = Path.GetExtension(image);
+            extension = string.IsNullOrEmpty(extension) ? "jpg" : extension;
+
+            var file = storage / Filename.From(filename, extension);
 
             await file.WriteBytes(bytes);
+
+            return;
         }
     }
 
@@ -94,6 +99,27 @@ static async Task SaveImage(string link, Conesoft.Files.Directory storage, strin
             var file = storage / Filename.From(filename, extension);
 
             await file.WriteBytes(bytes);
+
+            return;
+        }
+    }
+
+    {
+        var match = FindFirstImage().Match(html);
+
+        if (match.Success && match.Groups.Count > 1)
+        {
+            var image = match.Groups[1].Value.UrlWithoutQueryString();
+            var bytes = await client.GetByteArrayAsync(image);
+
+            var extension = Path.GetExtension(image);
+            extension = string.IsNullOrEmpty(extension) ? "jpg" : extension;
+
+            var file = storage / Filename.From(filename, extension);
+
+            await file.WriteBytes(bytes);
+
+            return;
         }
     }
 }
@@ -116,4 +142,7 @@ partial class Program
 
     [GeneratedRegex("content=[\"'](.+?)[\"'] property=[\"']og:image[\"']")]
     private static partial Regex FindContentOgImage();
+
+    [GeneratedRegex("img.*?src=[\"\"'](.*?)[\"\"']", RegexOptions.IgnorePatternWhitespace | RegexOptions.IgnoreCase)]
+    private static partial Regex FindFirstImage();
 }
