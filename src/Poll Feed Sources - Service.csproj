@@ -2,16 +2,20 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>Conesoft.Services.PollFeedSources</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="Properties\PublishProfiles\Deploy.pubxml.user" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="CodeHollow.FeedReader" Version="1.2.6" />
-    <PackageReference Include="Conesoft.Files" Version="1.7.3" />
-    <PackageReference Include="Conesoft.Hosting" Version="0.6.2" />
+    <PackageReference Include="Conesoft.Files" Version="1.8.2" />
+    <PackageReference Include="Conesoft.Hosting" Version="1.2.1" />
   </ItemGroup>
 
 </Project>
