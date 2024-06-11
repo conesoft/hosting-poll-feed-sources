@@ -1,13 +1,26 @@
 ﻿using CodeHollow.FeedReader;
 using CodeHollow.FeedReader.Feeds;
 using Conesoft.Files;
+using Conesoft.Hosting;
+using Conesoft.Services.PollFeedSources.Helpers;
 using Helpers;
-using Microsoft.AspNetCore.Http.Extensions;
-using System.Text.RegularExpressions;
+using Serilog;
 using System.Web;
 
 var configuration = new ConfigurationBuilder().AddJsonFile(Conesoft.Hosting.Host.GlobalSettings.Path).Build();
 var conesoftSecret = configuration["conesoft:secret"] ?? throw new Exception("Conesoft Secret not found in Configuration");
+
+var builder = Microsoft.Extensions.Hosting.Host.CreateApplicationBuilder(args);
+builder.Services
+    .AddLoggingToHost()
+    .AddPeriodicGarbageCollection(TimeSpan.FromMinutes(5))
+    .AddSingleton(new Notification(conesoftSecret));
+
+var host = builder.Build();
+
+await host.StartAsync();
+
+var notification = host.Services.GetRequiredService<Notification>();
 
 var timer = new PeriodicTimer(TimeSpan.FromMinutes(15));
 
@@ -16,9 +29,7 @@ var storage = Conesoft.Hosting.Host.GlobalStorage / "FromSources" / "Feeds";
 var feedstorage = storage / "Feeds";
 var entrystorage = storage / "Entries";
 
-var newestEntriesFile = storage / Filename.From("Newest Entries", "txt");
-
-var newestEntries = newestEntriesFile.Exists ? (await newestEntriesFile.ReadLines() ?? []).ToList() : [];
+Log.Information("trying to read from {settings}", settings);
 
 do
 {
@@ -26,7 +37,7 @@ do
     {
         var feeds = await settings.ReadFromJson<Feed[]>() ?? [];
 
-        Console.WriteLine($"polling {feeds.Length} feeds...");
+        Log.Information($"polling {feeds.Length} feeds...");
 
         await Task.WhenAll(feeds.Select(async f =>
         {
@@ -69,123 +80,28 @@ do
 
                         if (newentry)
                         {
-                            var image = await SaveImage(link, entrystorage, entry.Filename);
-                            if (newestEntries.Count > 0)
-                            {
-                                newestEntries.Insert(0, entry.Filename);
-                            }
-                            else
-                            {
-                                newestEntries.Add(entry.Filename);
-                            }
-                            await Notify(entry, image);
+                            var image = await ImageSaver.SaveImage(link, entrystorage, entry.Filename);
+                            await notification.Notify(entry, image);
                         }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine(ex.Message);
-                        Console.WriteLine();
-                        Console.WriteLine(e.Link);
+                        Log.Error("Error: {exception} for {link}", ex.Message, e.Link);
                     }
                 }));
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
-                Console.WriteLine();
-                Console.WriteLine(f.Siteurl);
+                Log.Error("Error: {exception} for {url}", ex.Message, f.Siteurl);
             }
         }));
-
-        await newestEntriesFile.WriteLines(newestEntries.Take(10));
-
-        Console.WriteLine("...done");
-        Console.WriteLine();
+        Log.Information("done");
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
-        Console.WriteLine();
+        Log.Error("Error: {exception}", ex.Message);
     }
 }
 while (await timer.WaitForNextTickAsync());
 
-async Task Notify(Entry entry, Conesoft.Files.File? image)
-{
-    var title = entry.Name;
-    var message = $"from: {entry.Feed}";
-    var url = entry.Url;
-    var imageUrl = image != null ? $"https://kontrol.conesoft.net/content/feeds/thumbnail/{image.Name}" : "";
 
-    var query = new QueryBuilder
-    {
-        { "token", conesoftSecret },
-        { "title", title },
-        { "message", message },
-        { "url", url }
-    };
-    if (image != null)
-    {
-        query.Add("imageUrl", imageUrl);
-    }
-
-    await new HttpClient().GetAsync($@"https://conesoft.net/notify" + query.ToQueryString());
-}
-
-static async Task<Conesoft.Files.File?> SaveImage(string link, Conesoft.Files.Directory storage, string filename)
-{
-    var client = new HttpClient();
-
-    var html = await client.GetStringAsync(link);
-
-    var match = FindOgImageContentOrFirstImage().Match(html);
-
-    var image = match.Success ? match.Groups["imageurl"].Value.UrlWithoutQueryString() : null;
-
-    if (image != null)
-    {
-        var extension = Path.GetExtension(image);
-        extension = string.IsNullOrEmpty(extension) ? "jpg" : extension;
-
-        var file = storage / Filename.From(filename, extension);
-
-        using var stream = await client.GetStreamAsync(image);
-        using var filestream = System.IO.File.OpenWrite(file.Path);
-        await stream.CopyToAsync(filestream);
-
-        return file;
-    }
-
-    return null;
-}
-
-record Feed(string Name, string Siteurl, string Feedurl, string Category)
-{
-    public string Filename => Name.SafeFilename();
-}
-
-record Entry(string Name, string Url, DateTime Published, string Description, string Category, string Feed)
-{
-    public string Filename => Url.CleanUrl().SafeFilename();
-}
-
-partial class Program
-{
-    //[GeneratedRegex("property=[\"']og:image[\"'] content=[\"'](.+?)[\"']")]
-    //private static partial Regex FindOgImageContent();
-
-
-    //[GeneratedRegex("content=[\"'](.+?)[\"'] property=[\"']og:image[\"']")]
-    //private static partial Regex FindContentOgImage();
-
-    //[GeneratedRegex("img.*?src=[\"\"'](.*?)[\"\"']", RegexOptions.IgnorePatternWhitespace | RegexOptions.IgnoreCase)]
-    //private static partial Regex FindFirstImage();
-
-    [GeneratedRegex(
-        "property=[\"']og:image[\"'] content=[\"'](?<imageurl>.+?)[\"']|" +
-        "content=[\"'](?<imageurl>.+?)[\"'] property=[\"']og:image[\"']|" +
-        "img(?!>)src=[\"'](?<imageurl>.*?)[\"']",
-        RegexOptions.IgnoreCase
-    )]
-    private static partial Regex FindOgImageContentOrFirstImage();
-}
