@@ -6,6 +6,7 @@ using Conesoft.Services.PollFeedSources.Helpers;
 using Helpers;
 using Serilog;
 using System.Web;
+using Entry = Conesoft.Services.PollFeedSources.Entry;
 
 var configuration = new ConfigurationBuilder().AddJsonFile(Conesoft.Hosting.Host.GlobalSettings.Path).Build();
 var conesoftSecret = configuration["conesoft:secret"] ?? throw new Exception("Conesoft Secret not found in Configuration");
@@ -30,6 +31,7 @@ var feedstorage = storage / "Feeds";
 var entrystorage = storage / "Entries";
 
 Log.Information("trying to read from {settings}", settings);
+Log.Information("storage in {storage}", storage);
 
 do
 {
