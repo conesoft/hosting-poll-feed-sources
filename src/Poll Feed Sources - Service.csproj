@@ -14,8 +14,8 @@
 
   <ItemGroup>
     <PackageReference Include="CodeHollow.FeedReader" Version="1.2.6" />
-    <PackageReference Include="Conesoft.Files" Version="3.0.3" />
-    <PackageReference Include="Conesoft.Hosting" Version="2.0.0" />
+    <PackageReference Include="Conesoft.Files" Version="3.0.5" />
+    <PackageReference Include="Conesoft.Hosting" Version="3.3.7" />
   </ItemGroup>
 
 </Project>

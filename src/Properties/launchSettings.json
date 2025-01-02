@@ -2,11 +2,10 @@
   "profiles": {
     "Poll Feed Sources - Service": {
       "commandName": "Project",
-      "launchBrowser": true,
+      "dotnetRunMessages": "true",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      },
-      "applicationUrl": "https://localhost:60887;http://localhost:60888"
+        "DOTNET_ENVIRONMENT": "Development"
+      }
     }
   }
 }

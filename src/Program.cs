@@ -2,41 +2,40 @@
 using CodeHollow.FeedReader.Feeds;
 using Conesoft.Files;
 using Conesoft.Hosting;
+using Conesoft.Notifications;
 using Conesoft.Services.PollFeedSources.Helpers;
 using Helpers;
 using Serilog;
 using System.Web;
 using Entry = Conesoft.Services.PollFeedSources.Entry;
 
-var configuration = new ConfigurationBuilder().AddJsonFile(Conesoft.Hosting.Host.GlobalSettings.Path).Build();
-var conesoftSecret = configuration["conesoft:secret"] ?? throw new Exception("Conesoft Secret not found in Configuration");
+var builder = Host.CreateApplicationBuilder(args);
 
-var builder = Microsoft.Extensions.Hosting.Host.CreateApplicationBuilder(args);
-builder.Services
-    .AddPeriodicGarbageCollection(TimeSpan.FromMinutes(5))
-    .AddSingleton(new Notification(conesoftSecret));
+builder
+    .AddHostConfigurationFiles()
+    .AddHostEnvironmentInfo()
+    .AddLoggingService()
+    .AddNotificationService()
+    ;
 
 var host = builder.Build();
 
-await host.StartAsync();
+using var lifetime = await host.StartConsoleAsync();
 
-var notification = host.Services.GetRequiredService<Notification>();
-
+var configuration = builder.Configuration;
+var environment = host.Services.GetRequiredService<HostEnvironment>();
+var notification = host.Services.GetRequiredService<Notifier>();
 var timer = new PeriodicTimer(TimeSpan.FromMinutes(15));
 
-var settings = Conesoft.Hosting.Host.LocalSettings;
-var storage = Conesoft.Hosting.Host.GlobalStorage / "FromSources" / "Feeds";
+var storage = environment.Global.Storage / "FromSources" / "Feeds";
 var feedstorage = storage / "Feeds";
 var entrystorage = storage / "Entries";
-
-Log.Information("trying to read from {settings}", settings);
-Log.Information("storage in {storage}", storage);
 
 do
 {
     try
     {
-        var feeds = await settings.ReadFromJson<Feed[]>() ?? [];
+        var feeds = configuration.GetRequiredSection("rss-feed-sources").Get<Feed[]>() ?? [];
 
         Log.Information($"polling {feeds.Length} feeds...");
 
@@ -75,7 +74,7 @@ do
                             Published: e.PublishingDate ?? DateTime.MinValue,
                             Description: e.Description,
                             Category: f.Category,
-                            Feed: f.Siteurl.CleanUrl().Replace("https://", "").Replace("http://", "").Replace("/", "").Replace("www.", "")
+                            Feed: f.Siteurl.CleanUrl().Replace("https://", "").Replace("http://", "").Replace("www.", "")
                         );
 
                         var entryfile = entrystorage / Filename.From(entry.Filename, "json");
@@ -85,7 +84,7 @@ do
                         if (newentry)
                         {
                             var image = await ImageSaver.SaveImage(link, entrystorage, entry.Filename);
-                            await notification.Notify(entry, image);
+                            await notification.Notify(entry.Name, $"from: {entry.Feed}", entry.Url, image);
                         }
                     }
                     catch (Exception ex)
@@ -106,6 +105,6 @@ do
         Log.Error("Error: {exception}", ex.Message);
     }
 }
-while (await timer.WaitForNextTickAsync());
+while (await timer.WaitForNextTickAsync(lifetime.CancellationToken).ReturnFalseWhenCancelled());
 
 
