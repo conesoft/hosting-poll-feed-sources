@@ -9,6 +9,7 @@ public partial class ImageSaver
     public static async Task<Files.File?> SaveImage(string link, Files.Directory storage, string filename)
     {
         var client = new HttpClient();
+        client.DefaultRequestHeaders.Add("User-Agent", "RSS Reader");
 
         var html = await client.GetStringAsync(link);
 

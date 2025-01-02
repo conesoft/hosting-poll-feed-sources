@@ -13,7 +13,6 @@ var conesoftSecret = configuration["conesoft:secret"] ?? throw new Exception("Co
 
 var builder = Microsoft.Extensions.Hosting.Host.CreateApplicationBuilder(args);
 builder.Services
-    .AddLoggingToHost()
     .AddPeriodicGarbageCollection(TimeSpan.FromMinutes(5))
     .AddSingleton(new Notification(conesoftSecret));
 
@@ -46,6 +45,9 @@ do
             try
             {
                 var client = new HttpClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "RSS Reader");
+
+                Log.Information("reading feed {feed}", f.Name);
 
                 var file = feedstorage / Filename.From(f.Filename, "xml");
 
@@ -88,13 +90,13 @@ do
                     }
                     catch (Exception ex)
                     {
-                        Log.Error("Error: {exception} for {link}", ex.Message, e.Link);
+                        Log.Error("Error: {exception} for {page}: {link}", ex.Message, f.Name, e.Link);
                     }
                 }));
             }
             catch (Exception ex)
             {
-                Log.Error("Error: {exception} for {url}", ex.Message, f.Siteurl);
+                Log.Error("Error: {exception} for {page}: {url}", ex.Message, f.Name, f.Siteurl);
             }
         }));
         Log.Information("done");
