@@ -18,4 +18,12 @@
     <PackageReference Include="Conesoft.Hosting" Version="3.3.7" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Properties\PublishProfiles\Deploy.pubxml">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
