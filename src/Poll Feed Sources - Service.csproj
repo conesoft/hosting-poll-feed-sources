@@ -7,23 +7,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Include="Properties\PublishProfiles\Deploy.pubxml.user" />
-  </ItemGroup>
-
+	
   <ItemGroup>
     <PackageReference Include="CodeHollow.FeedReader" Version="1.2.6" />
-    <PackageReference Include="Conesoft.Files" Version="3.0.7" />
-    <PackageReference Include="Conesoft.Hosting" Version="3.3.9" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Properties\PublishProfiles\Deploy.pubxml">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
-    </None>
+    <PackageReference Include="Conesoft.Hosting" Version="3.4.0" />
   </ItemGroup>
 
 </Project>
