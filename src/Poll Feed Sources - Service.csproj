@@ -10,7 +10,7 @@
 	
   <ItemGroup>
     <PackageReference Include="CodeHollow.FeedReader" Version="1.2.6" />
-    <PackageReference Include="Conesoft.Hosting" Version="3.4.12" />
+    <PackageReference Include="Conesoft.Hosting" Version="3.4.14" />
   </ItemGroup>
 
 </Project>
