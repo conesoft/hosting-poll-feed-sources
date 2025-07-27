@@ -68,7 +68,7 @@ public class Service(HostEnvironment environment, Notifier notifier, IConfigurat
                             if (newentry)
                             {
                                 var image = await ImageSaver.SaveImage(link, entrystorage, entry.Filename);
-                                await notifier.Notify(entry.Name, $"from: {entry.Feed}", entry.Url, image);
+                                await notifier.Notify(entry.Name, $"from: {entry.Feed}", entry.Url, imagePath: image?.Path);
                             }
                         }
                         catch (Exception ex)
